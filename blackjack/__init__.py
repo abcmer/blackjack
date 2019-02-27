@@ -74,25 +74,13 @@ class Table(object):
         while not done_dealing:
             for player in self.players:
                 if len(player.hand.cards) < 2:
-                    try: # Try to deal card from deck
-                        player.hand.cards.append(self.shoe.cards.pop(0))    
-                    except IndexError: # Handle empty shoe
-                        print('Dealer reshuffling...')
-                        self.shoe.reset()
-                        self.deal_cards()
-            try:
-                self.dealer.hand.cards.append(self.shoe.cards.pop(0)) 
-            except IndexError: # Handle empty shoe
-                print('Dealer reshuffling...')
-                self.shoe.reset()
-                self.deal_cards()
-
+                    player.hand.cards.append(self.shoe.get_top_card())              
+            self.dealer.hand.cards.append(self.shoe.get_top_card()) 
             # reset done_dealing
             done_dealing = all([
             [len(player.hand.cards) == 2 for player in self.players],
             len(self.dealer.hand.cards) == 2]
-            )   
-
+            )
 
     def play_hand(self):
         """Play Hand."""
@@ -127,7 +115,7 @@ class Table(object):
 
                 if decision == 'H':
                     hand.set_status('hit')
-                    hand.hit(self.shoe.cards.pop(0))
+                    hand.hit(self.shoe.get_top_card())
                     if hand.check_for_bust():
                         print(f'{player} BUSTS!!!!!')
                     if hand.calculate_total() == 21:
@@ -141,7 +129,7 @@ class Table(object):
         # Process dealers turn
         dealer_hand = self.dealer.hand
         while (dealer_hand.calculate_total() < 17):
-            dealer_hand.hit(self.shoe.cards.pop(0))
+            dealer_hand.hit(self.shoe.get_top_card())
             if dealer_hand.check_for_bust():
                 print(f'DEALER BUSTS with {dealer_hand}')
 
@@ -173,7 +161,7 @@ class Table(object):
 
 class Shoe(object):
     """Shoe class."""
-    def __init__(self, deck_count):
+    def __init__(self, deck_count=6):
         suits = ['Spades', 'Clubs', 'Diamonds', 'Hearts']
         ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'Jack', 'Queen', 'King', 'Ace']
         # Create deck of cards and multiply by deck_count to create shoe
@@ -192,6 +180,15 @@ class Shoe(object):
         self.discard_pile = []
         # sleep(3) # Simulate reset time when game mode is not debug
         self.shuffle()
+
+    def get_top_card(self):
+        """Gets top card from the shoe, handles end of shoe."""
+        if len(self.cards) > 0:
+            return self.cards.pop(0)
+        else: # If no more cards, reset the shoe
+            print('Dealer is resetting the shoe...')
+            self.reset()
+            return self.get_top_card()
 
 class Card(object):
     """Card class."""

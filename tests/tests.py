@@ -1,7 +1,7 @@
 """Test module."""
 import unittest
 
-from blackjack import Table, Player, Card, Hand, is_valid_bet_amt
+from blackjack import Table, Shoe, Player, Card, Hand, is_valid_bet_amt
 
 class SetUpGame(unittest.TestCase):
     """Test case for Table."""
@@ -23,6 +23,27 @@ class SetUpGame(unittest.TestCase):
         for player in self.players:
             self.table.add_player(player)
         self.assertEqual(len(self.table.players), 2)
+
+
+class TestShoe(unittest.TestCase):
+    """Test case for Shoe."""
+    def setUp(self):
+        """Set up function."""
+        self.shoe = Shoe()
+
+    def test_get_top_card(self):
+        """Test get top card from shoe."""
+        top_card = self.shoe.cards[0]
+        self.assertEqual(self.shoe.get_top_card(), top_card)
+
+    def test_no_more_cards(self):
+        """Test behaviour when theres no more cards to get."""
+        # Move all cards to discard pile
+        self.shoe.discard_pile = self.shoe.cards 
+        self.shoe.cards = []
+        # Try to get top card from empty shoe, should reset shoe on the fly
+        top_card = self.shoe.get_top_card()
+        self.assertTrue(isinstance(top_card, Card))
 
 class TestPlayer(unittest.TestCase):
     """Test case for player."""
@@ -170,7 +191,7 @@ class TestDealCards(unittest.TestCase):
         for player in self.table.players:
             self.assertEqual(len(player.hand.cards), 2)
         self.assertEqual(len(self.table.dealer.hand.cards), 2)
-        
+
 
 class TestValidations(unittest.TestCase):
     """Test case for player input validations."""
