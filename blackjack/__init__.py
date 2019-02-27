@@ -62,6 +62,9 @@ class Table(object):
             self.shoe.discard_pile += self.dealer.hand.cards
         self.dealer.hand = Hand()
 
+        # Add sleep time to simulate time between hands
+        sleep(3)
+
     def deal_cards(self):
         """Deal cards."""
         game_command('Dealing the cards...')
@@ -107,7 +110,7 @@ class Table(object):
                     f'{player} you have {player.hand.generate_hand_summary()}')
                 print('What would you like to do?')
                 game_legend('H=Hit, S=Stay')
-                decision = input('Decision: ')
+                decision = input('Decision: ').upper()
 
                 if decision == 'H':
                     hand.set_status('hit')
@@ -132,15 +135,19 @@ class Table(object):
 
         while (dealer_hand.calculate_total() < 17):
             dealer_hand.hit(self.shoe.get_top_card())
-            if dealer_hand.check_for_bust():
-                print(f'DEALER BUSTS with {dealer_hand}')
+            dealer_hand.check_for_bust()
 
     def pay_out_and_collect(self):
         """Pay out and collect."""
+        print('')
+        print('******************************************************************')
         dealer_hand = self.dealer.hand
-        print(
-            f'Dealer has {dealer_hand.generate_hand_summary(show_ace_alt_score=False)}'
-        )
+        if dealer_hand.status == 'bust':
+            print(
+                f'DEALER BUSTS with {dealer_hand.generate_hand_summary(False)}'
+            )
+        else:
+            print(f'Dealer has {dealer_hand.generate_hand_summary(False)}')
         dealer_total = self.dealer.hand.calculate_total()
 
         # For each player check if they beat dealer
@@ -166,11 +173,21 @@ class Table(object):
             elif (hand.status == 'blackjack') and (
                     dealer_hand.status == 'blackjack'):
                 print(f'{player} and dealer both have blackjack. PUSH')
+            elif (
+                (hand.status == 'blackjack') 
+                and (dealer_hand.status !='blackjack')
+                ):
+                print(
+                    f'{player} wins {bet_amt} dollars. Total remaining chips: {player.chips}'
+                )
             elif (hand.calculate_total() <= dealer_total):
                 player.subtract_chips(bet_amt)
                 print(
                     f'{player} loses {bet_amt} dollars. Total remaining chips: {player.chips}'
                 )
+
+        print('******************************************************************')
+        print('')
 
 
 class Shoe(object):
