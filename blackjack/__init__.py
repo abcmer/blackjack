@@ -4,7 +4,8 @@ import time
 
 class Table(object):
     """Table class."""
-    def __init__(self, min_bet=5, max_bet=100):        
+    def __init__(self, min_bet=5, max_bet=100):   
+        self.game_mode = 'debug'     
         self.min_bet = min_bet
         self.max_bet = max_bet
         self.players = []
@@ -13,8 +14,7 @@ class Table(object):
             'name': 'Max',
             'chips': 1000000
         })
-        self.shoe = Shoe()
-        self.discard_pile = []
+        self.shoe = Shoe(1)
         self.game_on = False
 
     def add_player(self, player):
@@ -53,25 +53,46 @@ class Table(object):
         # Add old cards to discard_pile for each player
         for player in self.players:
             if player.hand:
-                self.discard_pile += player.hand.cards
+                self.shoe.discard_pile += player.hand.cards
             player.hand = Hand()
 
         # Add dealers cards to discard pile
         if self.dealer.hand:
-            self.discard_pile += self.dealer.hand.cards
+            self.shoe.discard_pile += self.dealer.hand.cards
         self.dealer.hand = Hand()
 
     def deal_cards(self):
         """Deal cards."""
         game_command('Dealing the cards...')
-        sleep(.5 * len(players))
+        # sleep(.5 * len(self.players))
+        # done_dealing is true when all players and the dealer have 2 cards
+        done_dealing = all([
+            [len(player.hand.cards) == 2 for player in self.players],
+            len(self.dealer.hand.cards) == 2]
+        )
 
-        for i in range(2):
+        while not done_dealing:
             for player in self.players:
-                # Deal the top card into players current hand
-                player.hand.cards.append(self.shoe.cards.pop(0))           
-            # Deal card to Dealer
-            self.dealer.hand.cards.append(self.shoe.cards.pop(0)) 
+                if len(player.hand.cards) < 2:
+                    try: # Try to deal card from deck
+                        player.hand.cards.append(self.shoe.cards.pop(0))    
+                    except IndexError: # Handle empty shoe
+                        print('Dealer reshuffling...')
+                        self.shoe.reset()
+                        self.deal_cards()
+            try:
+                self.dealer.hand.cards.append(self.shoe.cards.pop(0)) 
+            except IndexError: # Handle empty shoe
+                print('Dealer reshuffling...')
+                self.shoe.reset()
+                self.deal_cards()
+
+            # reset done_dealing
+            done_dealing = all([
+            [len(player.hand.cards) == 2 for player in self.players],
+            len(self.dealer.hand.cards) == 2]
+            )   
+
 
     def play_hand(self):
         """Play Hand."""
@@ -152,19 +173,25 @@ class Table(object):
 
 class Shoe(object):
     """Shoe class."""
-    def __init__(self):
+    def __init__(self, deck_count):
         suits = ['Spades', 'Clubs', 'Diamonds', 'Hearts']
         ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'Jack', 'Queen', 'King', 'Ace']
-        self.cards = [Card(rank, suit) for suit in suits for rank in ranks ] * 6 # Multiply by 6 to create mega casino shoe
+        # Create deck of cards and multiply by deck_count to create shoe
+        self.cards = [Card(rank, suit) for suit in suits for rank in ranks ] * deck_count 
+        self.discard_pile = []
 
     def shuffle(self):
         """Shuffle the cards."""   
         game_command('Dealer is shuffling...')
-        sleep(3)
-        shuffle(self.cards)
-        shuffle(self.cards)
+        # sleep(3)
         shuffle(self.cards)
 
+    def reset(self):
+        """Move all cards from discard pile to shoe."""
+        self.cards = self.discard_pile
+        self.discard_pile = []
+        # sleep(3) # Simulate reset time when game mode is not debug
+        self.shuffle()
 
 class Card(object):
     """Card class."""
@@ -189,7 +216,7 @@ class Player(object):
         self.id = player_config['id']
         self.name = player_config['name']
         self.chips = player_config['chips']
-        self.hand = None
+        self.hand = Hand()
 
     def __repr__(self):
         return f'{self.name}'

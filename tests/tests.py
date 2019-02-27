@@ -139,10 +139,38 @@ class TestHand(unittest.TestCase):
         self.assertEqual(self.hand.bet_amt, 10)
 
 
+class TestDealCards(unittest.TestCase):
+    """Test case for dealing cards."""
 
+    def setUp(self):
+        self.table = Table(min_bet=10, max_bet=25)
+        player_configs = [{
+            'id': 1,
+            'name': 'Player 1',
+            'chips': 100
+        }, {
+            'id': 2,
+            'name': 'Player 2',
+            'chips': 100
+        }]
+        self.table.players = [Player(pc) for pc in player_configs]
+        self.table.deal_cards()
 
+    def test_deal_cards_basic(self):
+        """Test deal cards and assert each player got 2 cards."""
+        self.table.deal_cards()
+        for player in self.table.players:
+            self.assertEqual(len(player.hand.cards), 2)
+        self.assertEqual(len(self.table.dealer.hand.cards), 2)
 
-    
+    def test_not_enough_cards(self):
+        """Test dealing when not enough cards in the shoe."""
+        self.table.shoe.cards = self.table.shoe.cards[0:2] # Set deck to two cards
+        self.table.deal_cards()
+        for player in self.table.players:
+            self.assertEqual(len(player.hand.cards), 2)
+        self.assertEqual(len(self.table.dealer.hand.cards), 2)
+        
 
 class TestValidations(unittest.TestCase):
     """Test case for player input validations."""
