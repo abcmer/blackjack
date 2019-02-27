@@ -65,7 +65,7 @@ class Table(object):
     def deal_cards(self):
         """Deal cards."""
         game_command('Dealing the cards...')
-        # sleep(.5 * len(self.players))
+        sleep(.5 * len(self.players))
         # done_dealing is true when all players and the dealer have 2 cards
         done_dealing = all(
             [[len(player.hand.cards) == 2 for player in self.players],
@@ -93,29 +93,21 @@ class Table(object):
         for player in self.players:
             hand = player.hand
 
+            # In the event player is dealt double Aces,
+            # one ace will be downgraded to value=1
+            hand.check_for_bust()  # In case double Aces is dealt
+
             if hand.check_for_blackjack():
                 print(f'BLACKJACK FOR {player} with {hand}!!!!')
                 continue
 
             while hand.status not in ('bust', 'stay', 'dealer_blackjack'):
-                if 'Ace' in [card.rank for card in hand.cards]:
-                    total = hand.calculate_total()
-                    print(
-                        f'{player} you have {player.hand} for a total of {total} (or {total - 10})'
-                    )
-                    game_legend('H=Hit, S=Stay')
-                    decision = input('Decision:')
-                    ace = [card for card in hand.cards
-                           if card.rank == 'Ace'][0]
-                    # TODO -- Add logic for changing 11 to 1 if bust
-                else:
-                    print('')
-                    print(
-                        f'{player} you have {player.hand} for a total of {player.hand.calculate_total()}.'
-                    )
-                    print('What would you like to do?')
-                    game_legend('H=Hit, S=Stay')
-                    decision = input('Decision: ')
+                print('')
+                print(
+                    f'{player} you have {player.hand.generate_hand_summary()}')
+                print('What would you like to do?')
+                game_legend('H=Hit, S=Stay')
+                decision = input('Decision: ')
 
                 if decision == 'H':
                     hand.set_status('hit')
@@ -125,8 +117,7 @@ class Table(object):
                     if hand.calculate_total() == 21:
                         print(f'Nice Hit {player}')
                         print(
-                            f'You have {player.hand} for a total of {player.hand.calculate_total()}.'
-                        )
+                            f'You have {player.hand.generate_hand_summary()}')
                         hand.set_status('stay')
                 elif decision == 'S':
                     hand.set_status('stay')
@@ -134,6 +125,11 @@ class Table(object):
 
         # Process dealers turn
         dealer_hand = self.dealer.hand
+
+        # In event dealer is dealt double aces
+        # one ace will be downgraded to value=1
+        dealer_hand.check_for_bust()
+
         while (dealer_hand.calculate_total() < 17):
             dealer_hand.hit(self.shoe.get_top_card())
             if dealer_hand.check_for_bust():
@@ -143,7 +139,7 @@ class Table(object):
         """Pay out and collect."""
         dealer_hand = self.dealer.hand
         print(
-            f'Dealer has {dealer_hand} for a total of {dealer_hand.calculate_total()}'
+            f'Dealer has {dealer_hand.generate_hand_summary(show_ace_alt_score=False)}'
         )
         dealer_total = self.dealer.hand.calculate_total()
 
@@ -194,14 +190,22 @@ class Shoe(object):
     def shuffle(self):
         """Shuffle the cards."""
         game_command('Dealer is shuffling...')
-        # sleep(3)
+        sleep(3)
         shuffle(self.cards)
+
+    def reset_ace_values(self):
+        """Resets all Ace values to 11 in a list of cards."""
+        aces = list(filter(lambda card: card.rank == 'Ace', self.cards))
+        for ace in aces:
+            ace.value = 11
 
     def reset(self):
         """Move all cards from discard pile to shoe."""
         self.cards = self.discard_pile
+        # Set value for all aces to 11
+        self.reset_ace_values()
         self.discard_pile = []
-        # sleep(3) # Simulate reset time when game mode is not debug
+        sleep(3)  # Simulate reset time when game mode is not debug
         self.shuffle()
 
     def get_top_card(self):
@@ -267,13 +271,19 @@ class Hand(object):
     def calculate_total(self):
         return sum([card.value for card in self.cards])
 
+    def generate_hand_summary(self, show_ace_alt_score=True):
+        """Generates hand summary."""
+        total = self.calculate_total()
+        total_str = f'for a total of {total}'
+        if self.get_big_aces() and show_ace_alt_score:
+            total_str += f' ({total-10})'
+        summary = f'{self.cards} {total_str}'
+        return summary
+
     def set_status(self, status):
         assert status in ('hit', 'stay', 'split', 'bust', 'double', 'ace',
                           'blackjack', 'dealer_blackjack')
         self.status = status
-
-    def set_outcome(self, outcome):
-        assert outcome in ('win', 'lose')
 
     def check_for_blackjack(self):
         if (self.calculate_total() == 21) and (len(self.cards) == 2):
@@ -286,14 +296,23 @@ class Hand(object):
 
     def check_for_bust(self):
         """Check if total of cards is greater than 21."""
-        if self.calculate_total() > 21:
+        big_aces = self.get_big_aces()
+        if self.calculate_total() > 21 and not big_aces:
             self.set_status('bust')
-            self.set_outcome('lose')
             return True
+        elif self.calculate_total() > 21 and big_aces:
+            big_aces[0].value = 1
 
     def set_bet_amt(self, amt):
         """Set current bet to the amount provided."""
         self.bet_amt = amt
+
+    def get_big_aces(self):
+        """Filter hand for Aces."""
+        return [
+            card for card in self.cards
+            if card.rank == 'Ace' and card.value == 11
+        ]
 
 
 def is_valid_bet_amt(amt, min_bet, max_bet, chips_available):
@@ -312,8 +331,8 @@ def is_valid_bet_amt(amt, min_bet, max_bet, chips_available):
         return True
 
 
-def sleep(seconds):
-    time.sleep(seconds) if MODE != 'debug' else time.sleep(0)
+def sleep(seconds, mode='debug'):
+    time.sleep(seconds) if mode != 'debug' else time.sleep(0)
 
 
 def game_command(message):
