@@ -348,7 +348,7 @@ def is_valid_bet_amt(amt, min_bet, max_bet, chips_available):
         return True
 
 
-def sleep(seconds, mode='debug'):
+def sleep(seconds, mode='live'):
     time.sleep(seconds) if mode != 'debug' else time.sleep(0)
 
 
@@ -372,7 +372,7 @@ def game_warning(message):
 if __name__ == "__main__":
     """Simulate a game."""
 
-    MODE = 'debug'
+    MODE = 'live'
     players = [{
         'id': 1,
         'name': 'Player 1',
